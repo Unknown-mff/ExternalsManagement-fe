@@ -97,8 +97,42 @@ export class InterviewEvaluationComponent implements OnInit, AfterViewInit {
 
         this.loadEvaluations(id);
         this.evaluationService.getInterviewTranscription(id).subscribe({
-            next: (transcription) => {
-                this.transcription = transcription as unknown as string[];
+            next: (transcriptionRaw: any) => {
+                try {
+                    if (typeof transcriptionRaw === 'string') {
+                        try {
+                            const parsed = JSON.parse(transcriptionRaw);
+                            if (typeof parsed === 'object' && parsed !== null && parsed.transcription) {
+                                const inner = JSON.parse(parsed.transcription);
+                                this.transcription = Array.isArray(inner) ? inner : [inner];
+                            } else if (Array.isArray(parsed)) {
+                                this.transcription = parsed;
+                            } else {
+                                this.transcription = [transcriptionRaw];
+                            }
+                        } catch (e) {
+                            // If it fails to parse, it might be a plain string
+                            this.transcription = [transcriptionRaw];
+                        }
+                    } else if (Array.isArray(transcriptionRaw)) {
+                        this.transcription = transcriptionRaw;
+                    } else if (transcriptionRaw && typeof transcriptionRaw === 'object') {
+                        if (transcriptionRaw.transcription) {
+                            try {
+                                const inner = JSON.parse(transcriptionRaw.transcription);
+                                this.transcription = Array.isArray(inner) ? inner : [inner];
+                            } catch (e) {
+                                this.transcription = [transcriptionRaw.transcription];
+                            }
+                        } else {
+                            this.transcription = [];
+                        }
+                    }
+                    console.log('Transcription loaded, entries:', this.transcription.length);
+                } catch (e) {
+                    console.error('Failed to parse transcription JSON', e);
+                    this.transcription = [];
+                }
             },
             error: (err) => console.error('Failed to load transcription', err)
         });
@@ -114,9 +148,30 @@ export class InterviewEvaluationComponent implements OnInit, AfterViewInit {
                 this.interviewEvaluation = data;
                 this.evaluations = data.evaluations ?? [];
                 this.evaluations.forEach((e) => (this.animatedScores[e.id] = 0));
+
+                // Search for 'OverAll' evaluation type (case-insensitive)
                 this.overallEvaluation = this.evaluations.find(
-                    e => e.evaluationType?.description === 'OverAll'
+                    e => e.evaluationType?.description?.toLowerCase() === 'overall'
                 );
+
+                // If no dedicated OverAll entry, compute it as a weighted average
+                if (!this.overallEvaluation) {
+                    const scored = this.evaluations.filter(e => e.score != null && e.evaluationType?.coefficient);
+                    if (scored.length > 0) {
+                        const totalWeight = scored.reduce((s, e) => s + (e.evaluationType.coefficient || 1), 0);
+                        const weightedSum = scored.reduce((s, e) => s + (e.score! * (e.evaluationType.coefficient || 1)), 0);
+                        const computedScore = Math.round(weightedSum / totalWeight);
+                        // Build a synthetic evaluation entry for display
+                        this.overallEvaluation = {
+                            id: 'overall-computed',
+                            score: computedScore,
+                            feedback: '',
+                            interviewID: '',
+                            evaluationType: { id: '', description: 'OverAll', coefficient: 0 }
+                        };
+                        this.animatedScores['overall-computed'] = 0;
+                    }
+                }
 
                 // Debug log
                 console.log('Evaluations loaded:', this.evaluations);
@@ -188,8 +243,20 @@ export class InterviewEvaluationComponent implements OnInit, AfterViewInit {
     animateAllScores(): void {
         if (!this.scoreCircles) return;
         const els = this.scoreCircles.toArray();
-        this.evaluations.forEach((evaluation, i) => {
-            if (els[i]) this.animateScore(els[i].nativeElement, evaluation);
+        let elIndex = 0;
+
+        // Animate overall if present
+        if (this.overallEvaluation && els[elIndex]) {
+            this.animateScore(els[elIndex].nativeElement, this.overallEvaluation);
+            elIndex++;
+        }
+
+        // Animate non-overall evaluations
+        this.nonOverallEvaluations.forEach((evaluation) => {
+            if (els[elIndex]) {
+                this.animateScore(els[elIndex].nativeElement, evaluation);
+                elIndex++;
+            }
         });
     }
 
@@ -217,6 +284,8 @@ export class InterviewEvaluationComponent implements OnInit, AfterViewInit {
         if (!this.scoreCircles || !this.evaluations.length) return;
         const els = this.scoreCircles.toArray();
         els.forEach((el) => el.nativeElement.classList.remove('animate', 'pulse'));
+        
+        if (this.overallEvaluation) this.animatedScores[this.overallEvaluation.id] = 0;
         this.evaluations.forEach((e) => (this.animatedScores[e.id] = 0));
         setTimeout(() => this.animateAllScores(), 100);
     }
@@ -240,23 +309,24 @@ export class InterviewEvaluationComponent implements OnInit, AfterViewInit {
     getTranscriptEntries(): Array<{speaker: string, time: string, message: string, type: 'interviewer' | 'candidate'}> {
         const entries: Array<{speaker: string, time: string, message: string, type: 'interviewer' | 'candidate'}> = [];
 
+        // Matches: "SpeakerLabel - HH:MM:SS : rest of message"
+        // Group 1: speaker label (AI or Candidate)
+        // Group 2: timestamp HH:MM:SS
+        // Group 3: message (everything after the first ": " following the timestamp)
+        const lineRegex = /^(.+?)\s*-\s*(\d{2}:\d{2}:\d{2})\s*:\s*([\s\S]+)$/;
+
         this.transcription.forEach(entry => {
             const parts = entry.split('||');
 
             // Parse AI/Interviewer part (Question)
             if (parts[0]) {
                 const aiPart = parts[0].trim();
-                const aiTimeMatch = aiPart.match(/(\d{2}:\d{2}:\d{2})/);
-                const aiMessageMatch = aiPart.match(/:\s*(.+)$/);
-
-                if (aiTimeMatch && aiMessageMatch) {
-                    let message = aiMessageMatch[1].trim();
-                    message = message.replace(/^\d{2}:\d{2}\s*:\s*/, '');
-
+                const match = lineRegex.exec(aiPart);
+                if (match) {
                     entries.push({
                         speaker: this.translate.instant('evaluation.interviewer'),
-                        time: aiTimeMatch[1],
-                        message: message,
+                        time: match[2],
+                        message: match[3].trim(),
                         type: 'interviewer'
                     });
                 }
@@ -265,18 +335,13 @@ export class InterviewEvaluationComponent implements OnInit, AfterViewInit {
             // Parse Candidate part (Answer)
             if (parts[1]) {
                 const candidatePart = parts[1].trim();
-                const candidateTimeMatch = candidatePart.match(/(\d{2}:\d{2}:\d{2})/);
-                const candidateMessageMatch = candidatePart.match(/:\s*(.+)$/);
+                const match = lineRegex.exec(candidatePart);
                 const candidateName = this.interviewEvaluation?.candidateFullName || this.translate.instant('evaluation.candidate');
-
-                if (candidateTimeMatch && candidateMessageMatch) {
-                    let message = candidateMessageMatch[1].trim();
-                    message = message.replace(/^\d{2}:\d{2}\s*:\s*/, '');
-
+                if (match) {
                     entries.push({
                         speaker: candidateName,
-                        time: candidateTimeMatch[1],
-                        message: message,
+                        time: match[2],
+                        message: match[3].trim(),
                         type: 'candidate'
                     });
                 }

@@ -20,13 +20,13 @@
                             />
                         </g>
                     </svg>
-                    <div class="text-surface-900 dark:text-surface-0 text-3xl font-medium mb-4">Welcome to PrimeLand!</div>
-                    <span class="text-muted-color font-medium">Sign in to continue</span>
+                    <div class="text-surface-900 dark:text-surface-0 text-3xl font-medium mb-4">Externals Management</div>
+                    <span class="text-muted-color font-medium">Connectez-vous pour continuer</span>
                 </div>
 
                 <div>
-                    <label for="email1" class="block text-surface-900 dark:text-surface-0 text-xl font-medium mb-2">Email</label>
-                    <input pInputText id="email1" type="text" placeholder="Email address" class="w-full md:w-[30rem] mb-8" [(ngModel)]="email" />
+                    <label for="email1" class="block text-surface-900 dark:text-surface-0 text-xl font-medium mb-2">Username ou Email</label>
+                    <input pInputText id="email1" type="text" placeholder="Entrez votre nom d'utilisateur" class="w-full md:w-[30rem] mb-8" [(ngModel)]="email" />
 
                     <label for="password1" class="block text-surface-900 dark:text-surface-0 font-medium text-xl mb-2">Password</label>
                     <p-password id="password1" [(ngModel)]="password" placeholder="Password" [toggleMask]="true" styleClass="mb-4" [fluid]="true" [feedback]="false"></p-password>
@@ -38,7 +38,10 @@
                         </div>
                         <span class="font-medium no-underline ml-2 text-right cursor-pointer text-primary">Forgot password?</span>
                     </div>
-                    <p-button label="Sign In" styleClass="w-full" routerLink="/"></p-button>
+                    @if (errorMessage) {
+                        <div class="mb-4 text-center text-red-500 font-medium">{{ errorMessage }}</div>
+                    }
+                    <p-button label="Sign In" styleClass="w-full" (onClick)="onLogin()" [loading]="isLoading"></p-button>
                 </div>
             </div>
         </div>

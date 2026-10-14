@@ -1,11 +1,14 @@
 import { Routes } from '@angular/router';
 import { LayoutComponent } from './app/shared/layout/layout.component';
 import { InterviewTokenGuard } from './app/core/guards/interview-token.guard';
+import { authGuard } from './app/core/guards/auth.guard';
+import { roleGuard } from './app/core/guards/role.guard';
 
 export const appRoutes: Routes = [
     {
         path: '',
         component: LayoutComponent,
+        canActivate: [authGuard],
         children: [
             { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
 
@@ -24,11 +27,27 @@ export const appRoutes: Routes = [
             },
             {
                 path: 'prompts',
+                canActivate: [roleGuard],
+                data: { roles: ['ADMIN', 'RECRUITER'] },
                 loadChildren: () => import('./app/features/prompt/prompt.routes').then((m) => m.promptRoutes),
             },
             {
                 path: 'interviews',
+                canActivate: [roleGuard],
+                data: { roles: ['ADMIN', 'RECRUITER', 'manager'] },
                 loadChildren: () => import('./app/features/interviews/interviews.routes').then((m) => m.INTERVIEWS_ROUTES),
+            },
+            {
+                path: 'profile',
+                loadComponent: () => import('./app/features/profile/profile.component').then(m => m.ProfileComponent),
+                title: 'Mon Profil'
+            },
+            {
+                path: 'user-management',
+                canActivate: [roleGuard],
+                data: { roles: ['ADMIN', 'admin_bsa'] },
+                loadComponent: () => import('./app/features/user-management/user-management.component').then(m => m.UserManagementComponent),
+                title: 'Gestion des Utilisateurs'
             }
         ]
     },

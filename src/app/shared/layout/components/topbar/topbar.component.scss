@@ -63,3 +63,192 @@
         }
     }
 }
+
+/* ─── User Menu ──────────────────────────────────────────────── */
+.user-menu-container {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.user-menu-trigger {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.4rem 0.75rem;
+    border-radius: 50px;
+    border: 1px solid var(--surface-border);
+    background: transparent;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+
+    &:hover {
+        background: var(--surface-hover);
+        border-color: var(--primary-color);
+    }
+}
+
+.user-avatar-topbar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-600, #4f46e5));
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+}
+
+.user-info-topbar {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    line-height: 1.2;
+
+    @media (max-width: 640px) {
+        display: none;
+    }
+}
+
+.user-name-topbar {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-color);
+    max-width: 120px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-role-topbar {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--primary-color);
+}
+
+.chevron-icon {
+    font-size: 0.65rem;
+    color: var(--text-color-secondary);
+    transition: transform 0.2s;
+}
+
+/* ─── Dropdown Panel ─────────────────── */
+.user-dropdown-panel {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    right: 0;
+    min-width: 240px;
+    background: var(--surface-overlay);
+    border: 1px solid var(--surface-border);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
+    z-index: 2000;
+    overflow: hidden;
+    transform-origin: top right;
+}
+
+.user-dropdown-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+}
+
+.user-avatar-lg {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-600, #4f46e5));
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.user-dropdown-info {
+    overflow: hidden;
+}
+
+.user-dropdown-name {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--text-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-dropdown-email {
+    font-size: 0.75rem;
+    color: var(--text-color-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-dropdown-divider {
+    height: 1px;
+    background: var(--surface-border);
+    margin: 0.25rem 0;
+}
+
+.user-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.7rem 1.25rem;
+    cursor: pointer;
+    transition: background 0.15s;
+    font-size: 0.875rem;
+    color: var(--text-color);
+    text-decoration: none;
+    border: none;
+    background: transparent;
+    width: 100%;
+    text-align: left;
+
+    i {
+        font-size: 0.95rem;
+        color: var(--text-color-secondary);
+        width: 18px;
+        text-align: center;
+    }
+
+    &:hover {
+        background: var(--surface-hover);
+    }
+
+    &.logout-item {
+        color: var(--red-500);
+
+        i {
+            color: var(--red-400);
+        }
+
+        &:hover {
+            background: rgba(239, 68, 68, 0.06);
+        }
+    }
+}
+
+.admin-badge {
+    margin-left: auto;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--primary-color);
+    background: rgba(var(--primary-color-rgb, 99, 102, 241), 0.1);
+    border: 1px solid var(--primary-color);
+    border-radius: 999px;
+    padding: 0.1rem 0.45rem;
+}

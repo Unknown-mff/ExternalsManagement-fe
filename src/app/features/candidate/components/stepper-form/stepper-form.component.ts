@@ -1,7 +1,9 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, AbstractControl, ValidationErrors, FormArray, FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
+import { NewCvService } from '../../../../core/services/new-cv.service';
+import { LoaderService } from '../../../../core/services/loader.service';
 import { PanelModule } from 'primeng/panel';
 import { StepsModule } from 'primeng/steps';
 import { InputTextModule } from 'primeng/inputtext';
@@ -50,6 +52,9 @@ export class StepperFormComponent implements OnInit, OnDestroy {
     constructor(
         private fb: FormBuilder,
         private route: ActivatedRoute,
+        private router: Router,
+        private newCvService: NewCvService,
+        private loaderService: LoaderService,
         private confirmationService: ConfirmationService,
         private confirmationModalService: ConfirmationModalService,
         private translate: TranslateService
@@ -119,11 +124,11 @@ export class StepperFormComponent implements OnInit, OnDestroy {
     private initializeForms() {
         this.generalDataForm = this.fb.group(
             {
-                fullName: ['', [Validators.required, Validators.pattern('^[A-Za-z\\s]+$')]],
+                fullName: ['', [Validators.required, Validators.pattern(/^[a-zA-ZÀ-ÿ\s'-]+$/)]],
                 birthDate: ['', [Validators.required, this.ageValidator]],
                 yearsOfExperience: [null, [Validators.required, Validators.pattern('^[0-9]+$'), Validators.min(0)]],
                 gender: ['', Validators.required],
-                mainTech: ['', [Validators.required, Validators.pattern(/^[a-zA-Z0-9+#.\- ]+$/)]],
+                mainTech: ['', [Validators.required]],
                 summary: ['', Validators.required]
             },
             { validators: this.experienceAgeValidator }
@@ -162,8 +167,8 @@ export class StepperFormComponent implements OnInit, OnDestroy {
     addAddress() {
         this.addressesFormArray.push(
             this.fb.group({
-                street: ['', [Validators.required, Validators.pattern(/^[a-zA-Z0-9\s\-#.,'\/]+$/)]],
-                postalCode: ['', [Validators.required, Validators.pattern('^[A-Za-z0-9\\s-]{3,10}$')]],
+                street: ['', [Validators.required]],
+                postalCode: ['', [Validators.required]],
                 fullAddress: ['', Validators.required],
                 city: ['', [Validators.required, Validators.pattern(/^[a-zA-ZÀ-ÿ\s'.-]+$/)]],
                 country: ['', [Validators.required, Validators.pattern(/^[a-zA-ZÀ-ÿ\s'.-]+$/)]]
@@ -187,7 +192,7 @@ export class StepperFormComponent implements OnInit, OnDestroy {
                     institution: ['', [Validators.required]],
                     startDate: ['', Validators.required],
                     endDate: ['', Validators.required],
-                    diploma: ['', [Validators.required, Validators.pattern(/^[A-Za-z0-9\s,.\-'\+#&()]+$/)]]
+                    diploma: ['', [Validators.required]]
                 },
                 { validators: this.dateRangeValidator }
             )
@@ -206,11 +211,11 @@ export class StepperFormComponent implements OnInit, OnDestroy {
         this.experiencesFormArray.push(
             this.fb.group(
                 {
-                    companyName: ['', Validators.pattern("^[A-Za-z0-9&'’+.,\\-\\s]+$")],
-                    position: ['', Validators.pattern('^[A-Za-z\\s/-]+$')],
+                    companyName: ['', Validators.required],
+                    position: ['', Validators.required],
                     startDate: ['', Validators.pattern('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')],
                     endDate: ['', Validators.pattern('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')],
-                    description: ['', Validators.pattern('^[A-Za-z0-9\\s,.!?()\\-:;/\'"#\\n]+$')]
+                    description: ['']
                 },
                 { validators: this.experienceDateValidator }
             )
@@ -245,9 +250,13 @@ export class StepperFormComponent implements OnInit, OnDestroy {
     addLanguage() {
         this.languagesFormArray.push(
             this.fb.group({
-                language: ['', [Validators.required, Validators.pattern('^[A-Za-z\\s]+$')]],
+                language: ['', [Validators.required, Validators.pattern(/^[a-zA-ZÀ-ÿ\s]+$/)]],
                 level: ['', Validators.required],
-                isNative: [false]
+                isNative: [false],
+                description: [''],
+                englishDescription: [''],
+                fullDescription: [''],
+                languageInEnglish: ['']
             })
         );
     }
@@ -310,7 +319,7 @@ export class StepperFormComponent implements OnInit, OnDestroy {
             fullName: this.extractedData.fullName || '',
             birthDate: this.extractedData.birthDate || '',
             yearsOfExperience: this.isNumberAndNotNull(this.extractedData.yearsOfExperience) ? parseInt(this.extractedData.yearsOfExperience).toString() : '0',
-            gender: this.extractedData.gender === 'M' ? 'Male' : this.extractedData.gender === 'F' ? 'Female' : '',
+            gender: this.extractedData.gender === 'M' ? 'M' : this.extractedData.gender === 'F' ? 'F' : '',
             mainTech: this.extractedData.mainTech || '',
             summary: this.extractedData.summary || ''
         });
@@ -319,8 +328,8 @@ export class StepperFormComponent implements OnInit, OnDestroy {
             this.addressesFormArray.clear();
             this.addressesFormArray.push(
                 this.fb.group({
-                    street: [this.extractedData.address.street || '', [Validators.required, Validators.pattern(/^[a-zA-Z0-9\s\-#.,'\/]+$/)]],
-                    postalCode: [this.extractedData.address.postalCode || '', [Validators.required, Validators.pattern('^[A-Za-z0-9\\s-]{3,10}$')]],
+                    street: [this.extractedData.address.street || '', [Validators.required]],
+                    postalCode: [this.extractedData.address.postalCode || '', [Validators.required]],
                     fullAddress: [this.extractedData.address.fullAddress || '', Validators.required],
                     city: [this.extractedData.address.city?.name || this.extractedData.address.city || '', [Validators.required, Validators.pattern(/^[a-zA-ZÀ-ÿ\s'.-]+$/)]],
                     country: [this.extractedData.address.country?.name || this.extractedData.address.country || '', [Validators.required, Validators.pattern(/^[a-zA-ZÀ-ÿ\s'.-]+$/)]]
@@ -338,7 +347,7 @@ export class StepperFormComponent implements OnInit, OnDestroy {
                             institution: [edu.institution || '', [Validators.required]],
                             startDate: [edu.startDate || '', Validators.required],
                             endDate: [edu.endDate || '', Validators.required],
-                            diploma: [edu.diploma || edu.degree || '', [Validators.required, Validators.pattern(/^[A-Za-z0-9\s,.\-'\+#&()]+$/)]]
+                            diploma: [edu.diploma || edu.degree || '', [Validators.required]]
                         },
                         { validators: this.dateRangeValidator }
                     )
@@ -353,11 +362,11 @@ export class StepperFormComponent implements OnInit, OnDestroy {
             this.experiencesFormArray.push(
                 this.fb.group(
                     {
-                        companyName: [exp.companyName || '', Validators.pattern("^[A-Za-z0-9&'’+.,\\-\\s]+$")],
-                        position: [exp.position || '', Validators.pattern('^[A-Za-z\\s/-]+$')],
+                        companyName: [exp.companyName || '', Validators.required],
+                        position: [exp.position || '', Validators.required],
                         startDate: [exp.startDate || '', Validators.pattern('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')],
                         endDate: [exp.endDate || '', Validators.pattern('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')],
-                        description: [exp.description || '', Validators.pattern('^[A-Za-z0-9\\s,.!?()\\-:;/\'"#\\n]+$')]
+                        description: [exp.description || '']
                     },
                     { validators: this.experienceDateValidator }
                 )
@@ -373,9 +382,13 @@ export class StepperFormComponent implements OnInit, OnDestroy {
         languages.forEach((lang: Language) => {
             this.languagesFormArray.push(
                 this.fb.group({
-                    language: [lang.language || '', [Validators.required, Validators.pattern('^[A-Za-z\\s]+$')]],
+                    language: [lang.language || '', [Validators.required, Validators.pattern(/^[a-zA-ZÀ-ÿ\s]+$/)]],
                     level: [lang.level || '', Validators.required],
-                    isNative: [lang.isNative || lang.description === 'Native' || false]
+                    isNative: [lang.isNative || lang.description === 'Native' || false],
+                    description: [lang.description || lang.language || ''],
+                    englishDescription: [lang.englishDescription || lang.language || ''],
+                    fullDescription: [lang.fullDescription || ''],
+                    languageInEnglish: [lang.languageInEnglish || lang.language || '']
                 })
             );
         });
@@ -530,20 +543,43 @@ export class StepperFormComponent implements OnInit, OnDestroy {
         if (this.areAllFormsValid()) {
             const candidateData = {
                 fullName: this.generalDataForm.value.fullName,
-                birthDate: this.generalDataForm.value.birthDate,
+                birthDate: (this.generalDataForm.value.birthDate === 'null' || !this.generalDataForm.value.birthDate) ? null : this.generalDataForm.value.birthDate,
                 yearsOfExperience: Math.floor(this.generalDataForm.value.yearsOfExperience),
                 gender: this.generalDataForm.value.gender,
                 mainTech: this.generalDataForm.value.mainTech,
                 summary: this.generalDataForm.value.summary,
-                address: this.addressesFormArray.value[0] || {},
+                address: this.addressesFormArray.value[0] ? {
+                    street: this.addressesFormArray.value[0].street,
+                    postalCode: this.addressesFormArray.value[0].postalCode,
+                    fullAddress: this.addressesFormArray.value[0].fullAddress,
+                    city: { name: this.addressesFormArray.value[0].city },
+                    country: { name: this.addressesFormArray.value[0].country }
+                } : null,
                 educations: this.educationsFormArray.value,
                 experiences: this.experiencesFormArray.value.filter((exp: any) => exp.companyName || exp.position || exp.startDate || exp.endDate || exp.description),
-                languages: this.languagesFormArray.value,
+                naturalLanguages: this.languagesFormArray.value.map((lang: any) => ({
+                    ...lang,
+                    description: lang.description || lang.language,
+                    englishDescription: lang.englishDescription || lang.language,
+                    languageInEnglish: lang.languageInEnglish || lang.language
+                })),
                 skills: this.skillsFormArray.value,
                 contacts: this.contactsFormArray.value
             };
 
-            console.log('Candidate Data: ', candidateData);
+            this.loaderService.show(this.translate.instant('steppercandidate.saving'));
+            this.newCvService.saveCandidate(candidateData as any).subscribe({
+                next: (res) => {
+                    this.loaderService.hide();
+                    alert(this.translate.instant('steppercandidate.saveSuccess') || 'Candidate saved successfully!');
+                    this.router.navigate(['/candidates/list']);
+                },
+                error: (err) => {
+                    this.loaderService.hide();
+                    alert(this.translate.instant('steppercandidate.saveError') || 'Error saving candidate!');
+                    console.error('Error saving candidate', err);
+                }
+            });
         } else {
             this.markAllFormsTouched();
         }

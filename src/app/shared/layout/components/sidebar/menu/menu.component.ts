@@ -4,6 +4,7 @@ import { RouterModule } from '@angular/router';
 import { MenuItem } from 'primeng/api';
 import { MenuItemComponent } from '../menuitem/menu-item.component';
 import { TranslateService, TranslateModule } from '@ngx-translate/core';
+import { AuthService } from '../../../../../core/services/auth.service';
 
 @Component({
     selector: 'app-menu',
@@ -14,7 +15,7 @@ import { TranslateService, TranslateModule } from '@ngx-translate/core';
 export class MenuComponent implements OnInit {
     model: MenuItem[] = [];
 
-    constructor(private translate: TranslateService) {}
+    constructor(private translate: TranslateService, private authService: AuthService) {}
 
     ngOnInit() {
         this.buildMenu();
@@ -25,6 +26,19 @@ export class MenuComponent implements OnInit {
     }
 
     buildMenu() {
+        const roles = this.authService.getUserRoles();
+        const isAdmin = roles.includes('ADMIN');
+        const isRecruiter = roles.includes('RECRUITER');
+        const isManager = roles.includes('manager');
+        const isAdminBsa = roles.includes('admin_bsa');
+
+        // Visibilité par section
+        const canSeePrompts = isAdmin || isRecruiter;
+        const canSeeInterviews = isAdmin || isRecruiter || isManager;
+        const canSeeNewOffer = isAdmin || isRecruiter || isManager || isAdminBsa;
+        const canSeeCandidateList = isAdmin || isRecruiter || isManager || isAdminBsa;
+        const canSeeUserMgmt = isAdmin || isAdminBsa;
+
         this.model = [
             {
                 items: [{
@@ -44,7 +58,8 @@ export class MenuComponent implements OnInit {
                     {
                         label: this.translate.instant('candidateListMenu'),
                         icon: 'pi pi-fw pi-list',
-                        routerLink: ['/candidates/candidate-list']
+                        routerLink: ['/candidates/candidate-list'],
+                        visible: canSeeCandidateList
                     }
                 ]
             },
@@ -54,7 +69,8 @@ export class MenuComponent implements OnInit {
                     {
                         label: this.translate.instant('newOfferMenu'),
                         icon: 'pi pi-briefcase',
-                        routerLink: ['/offers/new-offer']
+                        routerLink: ['/offers/new-offer'],
+                        visible: canSeeNewOffer
                     },
                     {
                         label: this.translate.instant('offerListMenu'),
@@ -65,6 +81,7 @@ export class MenuComponent implements OnInit {
             },
             {
                 label: this.translate.instant('promptManagement'),
+                visible: canSeePrompts,
                 items: [
                     {
                         label: this.translate.instant('newPromptMenu'),
@@ -80,11 +97,23 @@ export class MenuComponent implements OnInit {
             },
             {
                 label: this.translate.instant('interviewsManagement'),
+                visible: canSeeInterviews,
                 items: [
                     {
                         label: this.translate.instant('interviewListMenu'),
                         icon: 'pi pi-fw pi-list',
                         routerLink: ['/interviews/interview-list']
+                    }
+                ]
+            },
+            {
+                label: this.translate.instant('administration'),
+                visible: canSeeUserMgmt,
+                items: [
+                    {
+                        label: this.translate.instant('userManagementMenu'),
+                        icon: 'pi pi-fw pi-users',
+                        routerLink: ['/user-management']
                     }
                 ]
             }

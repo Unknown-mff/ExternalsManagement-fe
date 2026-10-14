@@ -31,14 +31,14 @@ export class InterviewEvaluationService {
       .pipe(retry(2), catchError(err => handleError('Fetching Evaluations by Type', err)));
 
   prepareInterviewEvaluation = (interviewId: string, questionsAndAnswers: QuestionsAndAnswersForEvaluationDTO[]): Observable<String> =>
-    this.http.post(`${this.interviewsUrl}/${interviewId}/evaluations`, { questionsAndAnswers },{ responseType: 'text' })
+    this.http.post(`${this.interviewsUrl}/${interviewId}/evaluations`, { questionsAndAnswersForEvaluation: questionsAndAnswers },{ responseType: 'text' })
       .pipe(retry(2), catchError(err => handleError('Saving Interview Evaluation', err)));
 
   saveInterviewTranscription = (interviewId: string, transcription: string): Observable<any> =>
-    this.http.post(`${this.interviewsUrl}/${interviewId}/transcription`, { transcription }, { responseType: 'text' })
+    this.http.post(`${this.interviewsUrl}/${interviewId}/transcription`, transcription, { responseType: 'text' })
       .pipe(retry(2), catchError(err => handleError('Saving Interview Transcription', err)));
 
   getInterviewTranscription = (interviewId: string): Observable<string> =>
-    this.http.get<string>(`${this.interviewsUrl}/${interviewId}/transcription`)
+    this.http.get(`${this.interviewsUrl}/${interviewId}/transcription`, { responseType: 'text' })
       .pipe(retry(2), catchError(err => handleError('Fetching Interview Transcription', err)));
 }

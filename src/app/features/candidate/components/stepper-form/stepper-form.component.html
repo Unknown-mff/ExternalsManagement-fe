@@ -58,9 +58,9 @@
                     <div class="p-field">
                         <label>{{ 'steppercandidate.gender' | translate }}</label>
                         <div class="p-formgroup-inline">
-                            <p-radioButton name="gender" value="Male" formControlName="gender"></p-radioButton>
+                            <p-radioButton name="gender" value="M" formControlName="gender"></p-radioButton>
                             <label>{{ 'steppercandidate.male' | translate }}</label>
-                            <p-radioButton name="gender" value="Female" formControlName="gender"></p-radioButton>
+                            <p-radioButton name="gender" value="F" formControlName="gender"></p-radioButton>
                             <label>{{ 'steppercandidate.female' | translate }}</label>
                         </div>
                         @if (generalDataForm.get('gender')?.touched && generalDataForm.get('gender')?.invalid) {

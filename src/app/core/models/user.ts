@@ -1,9 +1,10 @@
 export interface User {
-    id: string; 
-    name: string;
-    email: string;
-    password: string;
-    role: string;
-    createdAt: string; 
-  }
-  
+  id: string;
+  username: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  enabled: boolean;
+  roles: string[];
+  createdAt?: string;
+}

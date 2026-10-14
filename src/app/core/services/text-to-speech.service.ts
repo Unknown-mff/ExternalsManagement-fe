@@ -166,11 +166,23 @@ export class TextToSpeechService {
       return Promise.reject(new Error('Empty text provided for TTS'));
     }
 
+    // Cancel any ongoing browser TTS to prevent overlapping speech
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+
     return new Promise((resolve, reject) => {
       const cached = this.getCachedAudio(text);
 
       const playAudio = (blob: Blob) => {
         try {
+          // If blob is empty, fallback to browser speech synthesis
+          if (!blob || blob.size === 0) {
+            console.warn('⚠️ ElevenLabs returned empty audio, using browser TTS fallback');
+            this.speakWithBrowserTTS(text).then(resolve).catch(() => resolve());
+            return;
+          }
+
           const audioUrl = URL.createObjectURL(blob);
           this.audioElement = new Audio(audioUrl);
           this.audioElement.volume = 0.8;
@@ -194,14 +206,9 @@ export class TextToSpeechService {
 
           this.audioElement.onerror = (error) => {
             cleanup();
-            console.error('❌ Audio playback error:', error);
-
-            if (fallbackToSilent) {
-              console.warn('⚠️ Continuing silently due to audio playback error');
-              resolve();
-            } else {
-              reject(new Error('Audio playback failed'));
-            }
+            console.error('❌ Audio playback error, falling back to browser TTS:', error);
+            // Fallback to browser TTS instead of staying silent
+            this.speakWithBrowserTTS(text).then(resolve).catch(() => resolve());
           };
 
           // Handle play promise rejection
@@ -211,28 +218,16 @@ export class TextToSpeechService {
           if (playPromise !== undefined) {
             playPromise.catch(error => {
               cleanup();
-              console.error('❌ Audio play failed:', error);
-
-              if (fallbackToSilent) {
-                console.warn('⚠️ Continuing silently due to play failure');
-                resolve();
-              } else {
-                reject(new Error(`Audio play failed: ${error.message}`));
-              }
+              console.error('❌ Audio play failed, falling back to browser TTS:', error);
+              this.speakWithBrowserTTS(text).then(resolve).catch(() => resolve());
             });
           }
 
         } catch (error) {
           this.isSpeakingSubject.next(false);
           this.isPlaying = false;
-          console.error('❌ Audio setup error:', error);
-
-          if (fallbackToSilent) {
-            console.warn('⚠️ Continuing silently due to audio setup error');
-            resolve();
-          } else {
-            reject(error);
-          }
+          console.error('❌ Audio setup error, falling back to browser TTS:', error);
+          this.speakWithBrowserTTS(text).then(resolve).catch(() => resolve());
         }
       };
 
@@ -246,16 +241,79 @@ export class TextToSpeechService {
           next: (blob) => playAudio(blob),
           error: (error) => {
             this.isSpeakingSubject.next(false);
-            console.error('❌ Failed to fetch audio for speaking:', error);
-
-            if (fallbackToSilent) {
-              console.warn('⚠️ Continuing silently due to fetch failure');
-              resolve();
-            } else {
-              reject(error);
-            }
+            console.error('❌ Failed to fetch audio, falling back to browser TTS:', error);
+            this.speakWithBrowserTTS(text).then(resolve).catch(() => resolve());
           }
         });
+      }
+    });
+  }
+
+  /**
+   * Fallback: Use browser's built-in Web Speech API (free, no API key needed)
+   */
+  private speakWithBrowserTTS(text: string): Promise<void> {
+    return new Promise((resolve) => {
+      if (!('speechSynthesis' in window)) {
+        console.warn('Browser TTS not supported');
+        resolve();
+        return;
+      }
+
+      // Cancel any ongoing speech
+      window.speechSynthesis.cancel();
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 0.9;
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
+      utterance.lang = 'fr-FR';
+
+      // Guard flag to prevent multiple trySpeak() calls
+      let hasSpoken = false;
+
+      // Try to find a French voice, fallback to default
+      const trySpeak = () => {
+        // Prevent duplicate invocations from both onvoiceschanged and setTimeout
+        if (hasSpoken) return;
+        hasSpoken = true;
+
+        const voices = window.speechSynthesis.getVoices();
+        const frenchVoice = voices.find(v => v.lang.startsWith('fr'));
+        if (frenchVoice) {
+          utterance.voice = frenchVoice;
+          utterance.lang = frenchVoice.lang;
+        }
+
+        this.isSpeakingSubject.next(true);
+
+        utterance.onend = () => {
+          this.isSpeakingSubject.next(false);
+          console.log('🎵 Browser TTS completed');
+          resolve();
+        };
+
+        utterance.onerror = (e) => {
+          this.isSpeakingSubject.next(false);
+          console.error('❌ Browser TTS error:', e);
+          resolve(); // Always resolve to keep interview going
+        };
+
+        // Cancel again right before speaking to clear any queued utterances
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utterance);
+        console.log('🔊 Using browser TTS fallback for:', text.substring(0, 60));
+      };
+
+      // Voices may not be loaded yet on first call
+      if (window.speechSynthesis.getVoices().length > 0) {
+        trySpeak();
+      } else {
+        window.speechSynthesis.onvoiceschanged = () => trySpeak();
+        // Safety timeout in case onvoiceschanged never fires
+        setTimeout(() => {
+          trySpeak();
+        }, 500);
       }
     });
   }
@@ -412,6 +470,11 @@ export class TextToSpeechService {
       this.audioElement.pause();
       this.audioElement.currentTime = 0;
       this.audioElement = null;
+    }
+
+    // Stop browser TTS if active
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
     }
 
     // Clear queue

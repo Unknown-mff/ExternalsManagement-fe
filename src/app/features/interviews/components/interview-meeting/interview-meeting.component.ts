@@ -818,11 +818,10 @@ export class InterviewMeetingComponent implements AfterViewInit, OnDestroy {
     finalizeInterviewAndSaveEvaluation(): void {
         this.isInterviewFinalizing = false;
         this.isInterviewCompleted = true;
-        window.scrollTo(0, 0);
 
         if (!this.interviewId) {
             console.error('No interview ID available for evaluation');
-            this.notify.showError('Error', 'Unable to save evaluation - missing interview ID');
+            this.router.navigate(['/interview-cloture'], { replaceUrl: true });
             return;
         }
 
@@ -835,31 +834,23 @@ export class InterviewMeetingComponent implements AfterViewInit, OnDestroy {
 
         const transcriptionString = JSON.stringify(this.transcriptions);
 
+        // ✅ Save transcription FIRST, then navigate — guarantees the transcription is persisted
         this.evaluationService.saveInterviewTranscription(this.interviewId, transcriptionString).subscribe({
-            next: (interview) => {
-                console.log('Interview Transcription saved');
-                console.log('Interview : ', interview);
+            next: () => {
+                console.log('✅ Interview Transcription saved, navigating...');
+                this.router.navigate(['/interview-cloture'], { replaceUrl: true });
             },
             error: (err) => {
-                console.error('Saving Transcription failed :', err);
+                // Even if saving fails, navigate so the candidate isn't stuck
+                console.error('❌ Saving Transcription failed, navigating anyway:', err);
+                this.router.navigate(['/interview-cloture'], { replaceUrl: true });
             }
         });
 
+        // Fire-and-forget: trigger AI evaluation in background (can take a long time)
         this.evaluationService.prepareInterviewEvaluation(this.interviewId, questionsAndAnswers).subscribe({
-            next: (evaluation) => {
-                console.log('Interview Evaluation:', evaluation);
-                this.notify.showSuccess('Interview Completed', 'Your interview has been successfully evaluated.');
-                setTimeout(() => {
-                    this.router.navigate(['/interview-cloture'], { replaceUrl: true });
-                }, 1000);
-            },
-            error: (err) => {
-                console.error('Evaluation error:', err);
-                this.notify.showWarning('Evaluation Failed', 'Interview saved, but evaluation failed. Try again later.');
-                setTimeout(() => {
-                    this.router.navigate(['/interview-cloture'], { replaceUrl: true });
-                }, 2000);
-            }
+            next: (evaluation) => console.log('Interview Evaluation completed in background:', evaluation),
+            error: (err) => console.error('Background evaluation error (non-blocking):', err)
         });
     }
 

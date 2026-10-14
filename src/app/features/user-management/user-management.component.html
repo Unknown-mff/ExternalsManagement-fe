@@ -1,0 +1,236 @@
+<p-toast></p-toast>
+<p-confirmDialog></p-confirmDialog>
+
+<div class="user-mgmt-page">
+
+  <!-- Page Header -->
+  <div class="page-header">
+    <div class="page-header-left">
+      <div class="page-icon">
+        <i class="pi pi-users"></i>
+      </div>
+      <div>
+        <h1 class="page-title">{{ 'userMgmt.pageTitle' | translate }}</h1>
+        <p class="page-subtitle">{{ 'userMgmt.pageSubtitle' | translate }}</p>
+      </div>
+    </div>
+    <p-button
+      *ngIf="!isReadOnly"
+      id="create-user-btn"
+      [label]="'userMgmt.newUser' | translate"
+      icon="pi pi-user-plus"
+      (onClick)="openCreateDialog()"
+    ></p-button>
+  </div>
+
+  <!-- Search + Table Card -->
+  <p-card styleClass="users-table-card">
+
+    <!-- Search Bar -->
+    <div class="table-toolbar">
+      <div class="search-box">
+        <i class="pi pi-search"></i>
+        <input
+          pInputText
+          id="user-search"
+          [(ngModel)]="searchQuery"
+          (keyup.enter)="onSearch()"
+          [placeholder]="'userMgmt.searchPlaceholder' | translate"
+          class="search-input"
+        />
+        <p-button
+          [label]="'userMgmt.search' | translate"
+          icon="pi pi-search"
+          severity="secondary"
+          size="small"
+          (onClick)="onSearch()"
+        ></p-button>
+      </div>
+      <p-button
+        icon="pi pi-refresh"
+        severity="secondary"
+        [text]="true"
+        [pTooltip]="'userMgmt.refresh' | translate"
+        (onClick)="loadUsers()"
+      ></p-button>
+    </div>
+
+    <!-- Users Table -->
+    <p-table
+      [value]="users"
+      [loading]="isLoadingUsers"
+      [paginator]="true"
+      [rows]="10"
+      [rowsPerPageOptions]="[5, 10, 25]"
+      styleClass="p-datatable-gridlines"
+      id="users-table"
+    >
+      <ng-template #header>
+        <tr>
+          <th>{{ 'userMgmt.colUser' | translate }}</th>
+          <th>{{ 'userMgmt.colEmail' | translate }}</th>
+          <th>{{ 'userMgmt.colRoles' | translate }}</th>
+          <th>{{ 'userMgmt.colStatus' | translate }}</th>
+          <th *ngIf="!isReadOnly" class="col-actions">{{ 'userMgmt.colActions' | translate }}</th>
+        </tr>
+      </ng-template>
+
+      <ng-template #body let-user>
+        <tr [class.row-disabled]="!user.enabled">
+          <td>
+            <div class="user-cell">
+              <div class="user-avatar-sm">
+                {{ (user.firstName?.[0] ?? '') + (user.lastName?.[0] ?? '') || user.username?.[0]?.toUpperCase() }}
+              </div>
+              <div>
+                <div class="user-fullname">{{ user.firstName }} {{ user.lastName }}</div>
+                <div class="user-username">&#64;{{ user.username }}</div>
+              </div>
+            </div>
+          </td>
+          <td class="text-color-secondary">{{ user.email }}</td>
+          <td>
+            <div class="roles-cell">
+              @for (role of user.displayRoles; track role) {
+                <p-tag [value]="role" [severity]="getRoleSeverity(role)"></p-tag>
+              }
+              @if (!user.displayRoles || user.displayRoles.length === 0) {
+                <span class="no-role">—</span>
+              }
+            </div>
+          </td>
+          <td>
+            <p-tag
+              [value]="user.enabled ? ('userMgmt.statusActive' | translate) : ('userMgmt.statusInactive' | translate)"
+              [severity]="user.enabled ? 'success' : 'danger'"
+            ></p-tag>
+          </td>
+          <td *ngIf="!isReadOnly">
+            <div class="action-buttons">
+              <p-button
+                icon="pi pi-pencil"
+                severity="info"
+                [text]="true"
+                [rounded]="true"
+                [pTooltip]="'userMgmt.tooltipEdit' | translate"
+                [id]="'edit-user-' + user.id"
+                (onClick)="openEditDialog(user)"
+              ></p-button>
+              <p-button
+                [icon]="user.enabled ? 'pi pi-ban' : 'pi pi-check-circle'"
+                [severity]="user.enabled ? 'warn' : 'success'"
+                [text]="true"
+                [rounded]="true"
+                [pTooltip]="user.enabled ? ('userMgmt.tooltipDisable' | translate) : ('userMgmt.tooltipEnable' | translate)"
+                [id]="'toggle-user-' + user.id"
+                (onClick)="toggleUserEnabled(user)"
+              ></p-button>
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+
+      <ng-template #emptymessage>
+        <tr>
+          <td [attr.colspan]="isReadOnly ? 4 : 5" class="empty-table">
+            <i class="pi pi-users"></i>
+            <p>{{ 'userMgmt.noUsers' | translate }}</p>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </p-card>
+</div>
+
+<!-- ─── Create / Edit Dialog ─────────────────────────────────────────────── -->
+<p-dialog
+  [(visible)]="isDialogVisible"
+  [header]="isEditMode ? ('userMgmt.dialogEditTitle' | translate) : ('userMgmt.dialogCreateTitle' | translate)"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  styleClass="user-dialog"
+  [style]="{ width: '550px' }"
+  id="user-form-dialog"
+>
+  <form [formGroup]="userForm" (ngSubmit)="onSave()" class="user-form">
+
+    <div class="form-row">
+      <div class="form-field">
+        <label for="dlg-firstName" class="form-label">{{ 'userMgmt.firstName' | translate }} <span class="required">*</span></label>
+        <input pInputText id="dlg-firstName" formControlName="firstName" [placeholder]="'userMgmt.firstNamePlaceholder' | translate" class="w-full" />
+        @if (userForm.get('firstName')?.invalid && userForm.get('firstName')?.touched) {
+          <small class="field-error">{{ 'userMgmt.required' | translate }}</small>
+        }
+      </div>
+      <div class="form-field">
+        <label for="dlg-lastName" class="form-label">{{ 'userMgmt.lastName' | translate }} <span class="required">*</span></label>
+        <input pInputText id="dlg-lastName" formControlName="lastName" [placeholder]="'userMgmt.lastNamePlaceholder' | translate" class="w-full" />
+        @if (userForm.get('lastName')?.invalid && userForm.get('lastName')?.touched) {
+          <small class="field-error">{{ 'userMgmt.required' | translate }}</small>
+        }
+      </div>
+    </div>
+
+    <div class="form-field">
+      <label for="dlg-username" class="form-label">{{ 'userMgmt.username' | translate }} <span class="required">*</span></label>
+      <input pInputText id="dlg-username" formControlName="username" placeholder="username" class="w-full" />
+      @if (userForm.get('username')?.invalid && userForm.get('username')?.touched) {
+        <small class="field-error">{{ 'userMgmt.usernameMin' | translate }}</small>
+      }
+    </div>
+
+    <div class="form-field">
+      <label for="dlg-email" class="form-label">{{ 'userMgmt.email' | translate }} <span class="required">*</span></label>
+      <input pInputText id="dlg-email" formControlName="email" type="email" [placeholder]="'userMgmt.emailPlaceholder' | translate" class="w-full" />
+      @if (userForm.get('email')?.invalid && userForm.get('email')?.touched) {
+        <small class="field-error">{{ 'userMgmt.emailInvalid' | translate }}</small>
+      }
+    </div>
+
+    <div class="form-field">
+      <label for="dlg-password" class="form-label">
+        {{ 'userMgmt.password' | translate }}
+        @if (!isEditMode) { <span class="required">*</span> }
+        @if (isEditMode) { <span class="optional">{{ 'userMgmt.passwordOptional' | translate }}</span> }
+      </label>
+      <input pInputText id="dlg-password" formControlName="password" type="password" placeholder="••••••••" class="w-full" />
+      @if (userForm.get('password')?.invalid && userForm.get('password')?.touched && !isEditMode) {
+        <small class="field-error">{{ 'userMgmt.passwordMin' | translate }}</small>
+      }
+    </div>
+
+    <div class="form-field">
+      <label for="dlg-role" class="form-label">{{ 'userMgmt.role' | translate }} <span class="required">*</span></label>
+      <p-select
+        id="dlg-role"
+        formControlName="role"
+        [options]="availableRoles"
+        optionLabel="name"
+        [placeholder]="'userMgmt.selectRole' | translate"
+        appendTo="body"
+        class="w-full"
+      ></p-select>
+      @if (userForm.get('role')?.invalid && userForm.get('role')?.touched) {
+        <small class="field-error">{{ 'userMgmt.roleRequired' | translate }}</small>
+      }
+    </div>
+
+    <div class="form-field form-field-switch">
+      <label class="form-label">{{ 'userMgmt.activeAccount' | translate }}</label>
+      <p-toggleswitch formControlName="enabled" id="dlg-enabled"></p-toggleswitch>
+    </div>
+
+  </form>
+
+  <ng-template #footer>
+    <p-button [label]="'userMgmt.cancel' | translate" severity="secondary" [text]="true" (onClick)="closeDialog()"></p-button>
+    <p-button
+      [label]="isEditMode ? ('userMgmt.update' | translate) : ('userMgmt.create' | translate)"
+      [icon]="isEditMode ? 'pi pi-save' : 'pi pi-user-plus'"
+      [loading]="isSaving"
+      (onClick)="onSave()"
+      id="save-user-btn"
+    ></p-button>
+  </ng-template>
+</p-dialog>

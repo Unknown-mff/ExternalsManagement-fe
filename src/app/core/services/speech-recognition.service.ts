@@ -22,7 +22,7 @@ export class SpeechRecognitionService implements ISpeechRecognitionService {
   private restartTimeout: any;
   private shouldRestart = false;
   private config: SpeechRecognitionConfig = {
-    lang: 'en-US',
+    lang: 'fr-FR',
     continuous: true,
     interimResults: true,
     maxAlternatives: 1,
@@ -259,7 +259,7 @@ export class SpeechRecognitionService implements ISpeechRecognitionService {
     console.error('Speech recognition error:', event.error);
 
     const errorMapping: { [key: string]: string } = {
-      'network': 'Network error occurred. Please check your internet connection.',
+      'network': 'Reconnexion au service de reconnaissance vocale...',
       'not-allowed': 'Microphone access denied. Please allow microphone permissions.',
       'no-speech': 'No speech detected. Please try speaking again.',
       'audio-capture': 'Audio capture failed. Please check your microphone.',
@@ -276,9 +276,22 @@ export class SpeechRecognitionService implements ISpeechRecognitionService {
       code: event.error
     };
 
-    this.updateState({ error: errorMessage });
+    // Only show error state for non-transient errors
+    if (event.error !== 'network' && event.error !== 'no-speech' && event.error !== 'aborted') {
+      this.updateState({ error: errorMessage });
+    }
     this.errorSubject.next(error);
     this.emitEvent('error', error);
+
+    // Only stop auto-restart on truly fatal errors (not network which is transient)
+    if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+      this.shouldRestart = false;
+    }
+    // For network errors, reinitialize the recognition object to get a fresh connection
+    if (event.error === 'network') {
+      console.log('Network error in speech recognition - will reinitialize on next restart');
+      this.reinitializeRecognition();
+    }
   }
 
   /**
@@ -355,15 +368,42 @@ export class SpeechRecognitionService implements ISpeechRecognitionService {
         console.log('Auto-restarting speech recognition...');
         try {
           this.recognition.start();
-        } catch (error) {
+        } catch (error: any) {
           console.error('Failed to restart speech recognition:', error);
-          this.emitError({
-            error: 'restart-failed',
-            message: 'Failed to restart speech recognition'
-          });
+          // If the recognition instance is in a bad state, reinitialize and try again
+          if (error?.message?.includes('already started') || error?.name === 'InvalidStateError') {
+            console.log('Recognition already started - skipping restart');
+          } else {
+            this.reinitializeRecognition();
+            setTimeout(() => {
+              if (this.canRestart()) {
+                try { this.recognition.start(); } catch (e) { console.error('Second restart attempt failed:', e); }
+              }
+            }, 500);
+          }
         }
       }
     }, delay);
+  }
+
+  /**
+   * Reinitialize the speech recognition engine (useful after network errors)
+   */
+  private reinitializeRecognition(): void {
+    try {
+      if (this.isListening) {
+        this.recognition?.stop();
+        this.isListening = false;
+      }
+    } catch (e) { /* ignore */ }
+
+    const SpeechAPI = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+    if (SpeechAPI) {
+      this.recognition = new SpeechAPI();
+      this.applyConfiguration();
+      this.attachEventHandlers();
+      console.log('Speech recognition engine reinitialized');
+    }
   }
 
   /**

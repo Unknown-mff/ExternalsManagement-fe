@@ -1,0 +1,121 @@
+<p-toast></p-toast>
+
+<div class="profile-page">
+  <div class="profile-header-banner">
+    <div class="profile-avatar-wrapper">
+      <div class="profile-avatar" id="user-avatar">
+        {{ userInitials }}
+      </div>
+    </div>
+  </div>
+
+  <div class="profile-content">
+    <!-- Left Column: Info Card -->
+    <div class="profile-sidebar">
+      <p-card styleClass="profile-info-card">
+        <div class="profile-info-name">{{ currentUser?.fullName || currentUser?.username }}</div>
+        <div class="profile-info-username">&#64;{{ currentUser?.username }}</div>
+
+        <div class="profile-roles">
+          <div class="roles-label">{{ 'profilePage.assignedRoles' | translate }}</div>
+          <div class="roles-list">
+            @for (role of userRoles; track role) {
+              <span class="role-badge" [class.role-admin]="role === 'ADMIN'">{{ role }}</span>
+            }
+            @if (userRoles.length === 0) {
+              <span class="text-muted-color text-sm">{{ 'profilePage.noRole' | translate }}</span>
+            }
+          </div>
+        </div>
+
+        <p-divider></p-divider>
+
+        <div class="profile-email-display">
+          <i class="pi pi-envelope"></i>
+          <span>{{ currentUser?.email || '—' }}</span>
+        </div>
+      </p-card>
+    </div>
+
+    <!-- Right Column: Edit Form -->
+    <div class="profile-main">
+      <p-card styleClass="profile-form-card">
+        <ng-template #header>
+          <div class="profile-form-header">
+            <i class="pi pi-user-edit"></i>
+            <span>{{ 'profilePage.editProfile' | translate }}</span>
+          </div>
+        </ng-template>
+
+        <form [formGroup]="profileForm" (ngSubmit)="onSave()" class="profile-form">
+          <div class="form-row">
+            <div class="form-field">
+              <label for="firstName" class="form-label">{{ 'profilePage.firstName' | translate }}</label>
+              <input
+                pInputText
+                id="firstName"
+                formControlName="firstName"
+                [placeholder]="'profilePage.firstNamePlaceholder' | translate"
+                class="w-full"
+              />
+              @if (profileForm.get('firstName')?.invalid && profileForm.get('firstName')?.touched) {
+                <small class="field-error">{{ 'profilePage.firstNameRequired' | translate }}</small>
+              }
+            </div>
+
+            <div class="form-field">
+              <label for="lastName" class="form-label">{{ 'profilePage.lastName' | translate }}</label>
+              <input
+                pInputText
+                id="lastName"
+                formControlName="lastName"
+                [placeholder]="'profilePage.lastNamePlaceholder' | translate"
+                class="w-full"
+              />
+              @if (profileForm.get('lastName')?.invalid && profileForm.get('lastName')?.touched) {
+                <small class="field-error">{{ 'profilePage.lastNameRequired' | translate }}</small>
+              }
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label for="email" class="form-label">{{ 'profilePage.email' | translate }}</label>
+            <input
+              pInputText
+              id="email"
+              formControlName="email"
+              type="email"
+              [placeholder]="'profilePage.emailPlaceholder' | translate"
+              class="w-full"
+            />
+            @if (profileForm.get('email')?.invalid && profileForm.get('email')?.touched) {
+              <small class="field-error">{{ 'profilePage.emailInvalid' | translate }}</small>
+            }
+          </div>
+
+          <div class="form-field">
+            <label for="username" class="form-label">{{ 'profilePage.username' | translate }}</label>
+            <input
+              pInputText
+              id="username"
+              formControlName="username"
+              class="w-full field-readonly"
+            />
+            <small class="field-hint"><i class="pi pi-lock"></i> {{ 'profilePage.usernameHint' | translate }}</small>
+          </div>
+
+          <div class="form-actions">
+            <p-button
+              id="save-profile-btn"
+              type="submit"
+              [label]="'profilePage.saveChanges' | translate"
+              icon="pi pi-save"
+              [loading]="isSaving"
+              [disabled]="profileForm.invalid"
+            ></p-button>
+          </div>
+        </form>
+      </p-card>
+    </div>
+  </div>
+</div>

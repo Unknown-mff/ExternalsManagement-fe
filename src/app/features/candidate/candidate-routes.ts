@@ -1,9 +1,12 @@
 import { Routes } from '@angular/router';
 import { CandidateListComponent } from './components/candidate-list/candidate-list.component';
+import { roleGuard } from '../../core/guards/role.guard';
 
 export const CANDIDATE_FORMS_ROUTES: Routes = [
   {
     path: '',
+    canActivate: [roleGuard],
+    data: { roles: ['ADMIN', 'RECRUITER', 'manager', 'admin_bsa'] },
     component: CandidateListComponent,
     children: [
       {
